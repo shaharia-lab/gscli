@@ -158,8 +158,19 @@ gscli drive search "Budget 2025"
 # Download a file
 gscli drive download <file-id>
 
-# Export Google Doc as PDF
-gscli drive download <doc-id> --format pdf
+# Export Google Docs to different formats
+gscli drive download <doc-id> --format pdf        # PDF (default)
+gscli drive download <doc-id> --format markdown   # Markdown
+gscli drive download <doc-id> --format txt        # Plain text
+gscli drive download <doc-id> --format docx       # Microsoft Word
+
+# Export Google Sheets to different formats
+gscli drive download <sheet-id> --format xlsx     # Excel (all sheets)
+gscli drive download <sheet-id> --format csv      # CSV (first sheet only)
+gscli drive download <sheet-id> --format tsv      # TSV (first sheet only)
+
+# Export Google Slides
+gscli drive download <slides-id> --format pptx    # PowerPoint
 
 # Download to specific directory
 gscli drive download <file-id> --output ./downloads

@@ -21,6 +21,36 @@ const GOOGLE_DOCS_MIME_TYPES = [
   'application/vnd.google-apps.drawing',
 ];
 
+// Export format mappings
+const EXPORT_FORMATS: Record<string, Record<string, { mimeType: string; extension: string }>> = {
+  'application/vnd.google-apps.document': {
+    pdf: { mimeType: 'application/pdf', extension: '.pdf' },
+    docx: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', extension: '.docx' },
+    markdown: { mimeType: 'text/markdown', extension: '.md' },
+    txt: { mimeType: 'text/plain', extension: '.txt' },
+    html: { mimeType: 'application/zip', extension: '.zip' },
+    epub: { mimeType: 'application/epub+zip', extension: '.epub' },
+  },
+  'application/vnd.google-apps.spreadsheet': {
+    pdf: { mimeType: 'application/pdf', extension: '.pdf' },
+    xlsx: { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', extension: '.xlsx' },
+    csv: { mimeType: 'text/csv', extension: '.csv' },
+    tsv: { mimeType: 'text/tab-separated-values', extension: '.tsv' },
+    html: { mimeType: 'application/zip', extension: '.zip' },
+  },
+  'application/vnd.google-apps.presentation': {
+    pdf: { mimeType: 'application/pdf', extension: '.pdf' },
+    pptx: { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', extension: '.pptx' },
+    txt: { mimeType: 'text/plain', extension: '.txt' },
+  },
+  'application/vnd.google-apps.drawing': {
+    pdf: { mimeType: 'application/pdf', extension: '.pdf' },
+    jpeg: { mimeType: 'image/jpeg', extension: '.jpg' },
+    png: { mimeType: 'image/png', extension: '.png' },
+    svg: { mimeType: 'image/svg+xml', extension: '.svg' },
+  },
+};
+
 /**
  * List files in Google Drive
  */
@@ -121,7 +151,7 @@ export async function downloadFile(
   auth: OAuth2Client,
   fileId: string,
   options: {
-    format?: 'pdf' | 'original';
+    format?: string;
     outputPath?: string;
   } = {}
 ): Promise<string> {
@@ -145,22 +175,39 @@ export async function downloadFile(
     let responseStream: any;
 
     if (isGoogleDoc) {
-      // Export Google Workspace files as PDF
-      if (options.format === 'pdf' || !options.format) {
-        outputFileName = `${fileName}.pdf`;
-        const response = await drive.files.export(
-          {
-            fileId,
-            mimeType: 'application/pdf',
-          },
-          { responseType: 'stream' }
+      // Export Google Workspace files
+      const requestedFormat = options.format || 'pdf';
+      const formatConfig = EXPORT_FORMATS[mimeType]?.[requestedFormat];
+      
+      if (!formatConfig) {
+        const availableFormats = Object.keys(EXPORT_FORMATS[mimeType] || {}).join(', ');
+        throw new Error(
+          `Unsupported export format '${requestedFormat}' for this file type.\n` +
+          `Available formats: ${availableFormats || 'none'}`
         );
-        responseStream = response.data;
-      } else {
-        throw new Error('Only PDF export is supported for Google Workspace files in MVP');
       }
+      
+      // Special handling for sheets with CSV/TSV (first sheet only)
+      if (mimeType === 'application/vnd.google-apps.spreadsheet' && 
+          (requestedFormat === 'csv' || requestedFormat === 'tsv')) {
+        console.warn(`Note: ${requestedFormat.toUpperCase()} export only includes the first sheet. Use 'xlsx' format for all sheets.`);
+      }
+      
+      outputFileName = `${fileName}${formatConfig.extension}`;
+      const response = await drive.files.export(
+        {
+          fileId,
+          mimeType: formatConfig.mimeType,
+        },
+        { responseType: 'stream' }
+      );
+      responseStream = response.data;
     } else {
-      // Download regular files
+      // Download regular files (images, videos, etc.)
+      if (options.format && options.format !== 'original') {
+        throw new Error('Format conversion is only supported for Google Workspace files (Docs, Sheets, Slides)');
+      }
+      
       outputFileName = fileName;
       const response = await drive.files.get(
         {
@@ -185,6 +232,16 @@ export async function downloadFile(
   } catch (error: any) {
     throw new Error(`Failed to download file: ${error.message}`);
   }
+}
+
+/**
+ * Get available export formats for a file
+ */
+export function getAvailableFormats(mimeType: string): string[] {
+  if (EXPORT_FORMATS[mimeType]) {
+    return Object.keys(EXPORT_FORMATS[mimeType]);
+  }
+  return ['original'];
 }
 
 /**
