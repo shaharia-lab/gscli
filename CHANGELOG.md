@@ -2,7 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.0] - 2025-11-05
+## [Unreleased]
+
+### Added
+- Self-update command (`gscli update`) to update the CLI to the latest version
+- Update check command (`gscli update check`) to check for available updates
+- Automatic binary replacement for seamless updates
+- Platform-specific binary detection (Linux, macOS, Windows)
+
+## [0.0.1] - 2025-11-05
 
 ### Initial Release
 
