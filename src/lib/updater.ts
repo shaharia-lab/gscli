@@ -3,7 +3,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 
 const GITHUB_REPO = 'shaharia-lab/gscli';
-const CURRENT_VERSION = '0.0.1';
+const CURRENT_VERSION = '0.0.2';
 
 interface GitHubRelease {
   tag_name: string;

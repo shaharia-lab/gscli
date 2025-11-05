@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.2] - 2025-11-05
+
 ### Added
 - Self-update command (`gscli update`) to update the CLI to the latest version
 - Update check command (`gscli update check`) to check for available updates
