@@ -8,9 +8,9 @@ export interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
-  size?: string;
+  size?: string | null;
   modifiedTime: string;
-  webViewLink?: string;
+  webViewLink?: string | null;
   isFolder: boolean;
 }
 

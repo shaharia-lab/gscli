@@ -6,7 +6,7 @@ import { CalendarEvent } from './calendar.js';
 /**
  * Format bytes to human-readable size
  */
-export function formatBytes(bytes?: string): string {
+export function formatBytes(bytes?: string | null): string {
   if (!bytes) return 'N/A';
   const size = parseInt(bytes);
   if (size === 0) return '0 B';

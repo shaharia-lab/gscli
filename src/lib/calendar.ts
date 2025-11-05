@@ -4,14 +4,14 @@ import { OAuth2Client } from 'google-auth-library';
 export interface CalendarEvent {
   id: string;
   summary: string;
-  description?: string;
+  description?: string | null;
   start: string;
   end: string;
-  location?: string;
+  location?: string | null;
   organizer?: string;
   attendees?: string[];
   status: string;
-  htmlLink?: string;
+  htmlLink?: string | null;
 }
 
 /**
