@@ -141,6 +141,9 @@ gscli gmail list --folder SENT
 # Search emails with Gmail query syntax
 gscli gmail search "from:boss@example.com subject:report"
 gscli gmail search "is:unread after:2025/11/01"
+
+# List all folders/labels
+gscli gmail folders-list
 ```
 
 ### Google Drive Commands
