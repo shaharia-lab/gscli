@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            artifact: gscli-linux
+          - os: macos-latest
+            target: darwin
+            artifact: gscli-macos
+          - os: windows-latest
+            target: windows
+            artifact: gscli-windows.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build binary for ${{ matrix.target }}
+        run: |
+          if [ "${{ matrix.target }}" == "linux" ]; then
+            bun build --compile --minify --target=bun-linux-x64 src/index.ts --outfile dist/${{ matrix.artifact }}
+          elif [ "${{ matrix.target }}" == "darwin" ]; then
+            bun build --compile --minify --target=bun-darwin-x64 src/index.ts --outfile dist/${{ matrix.artifact }}
+          elif [ "${{ matrix.target }}" == "windows" ]; then
+            bun build --compile --minify --target=bun-windows-x64 src/index.ts --outfile dist/${{ matrix.artifact }}
+          fi
+        shell: bash
+
+      - name: Verify binary
+        run: |
+          if [ "${{ matrix.target }}" != "windows" ]; then
+            chmod +x dist/${{ matrix.artifact }}
+            ./dist/${{ matrix.artifact }} --version
+          fi
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+
+  create-release:
+    name: Create GitHub Release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          for dir in */; do
+            cd "$dir"
+            for file in *; do
+              sha256sum "$file" > "$file.sha256"
+            done
+            cd ..
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/gscli-linux/gscli-linux
+            artifacts/gscli-linux/gscli-linux.sha256
+            artifacts/gscli-macos/gscli-macos
+            artifacts/gscli-macos/gscli-macos.sha256
+            artifacts/gscli-windows.exe/gscli-windows.exe
+            artifacts/gscli-windows.exe/gscli-windows.exe.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Installation
+            
+            Download the appropriate binary for your platform:
+            
+            ### Linux
+            ```bash
+            curl -L https://github.com/shaharia-lab/gscli/releases/download/${{ github.ref_name }}/gscli-linux -o gscli
+            chmod +x gscli
+            sudo mv gscli /usr/local/bin/
+            ```
+            
+            ### macOS
+            ```bash
+            curl -L https://github.com/shaharia-lab/gscli/releases/download/${{ github.ref_name }}/gscli-macos -o gscli
+            chmod +x gscli
+            sudo mv gscli /usr/local/bin/
+            ```
+            
+            ### Windows
+            Download `gscli-windows.exe` and add to your PATH.
+            
+            ## Verify Checksums
+            ```bash
+            sha256sum -c gscli-linux.sha256
+            ```
+            
+            ## Quick Start
+            ```bash
+            # Set up your credentials
+            export GOOGLE_CLIENT_CREDENTIAL_FILE="/path/to/client.json"
+            
+            # Authenticate
+            gscli auth login
+            
+            # Start using
+            gscli gmail list
+            gscli drive list
+            gscli calendar list
+            ```
+

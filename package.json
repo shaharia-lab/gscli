@@ -1,0 +1,47 @@
+{
+  "name": "gscli",
+  "version": "0.1.0",
+  "description": "Google Service CLI - A fast CLI tool for AI agents and developers to access Gmail, Drive, and Calendar from terminal",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "gscli": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build --compile --minify --sourcemap src/index.ts --outfile dist/gscli",
+    "build:all": "bun run build:linux && bun run build:macos && bun run build:windows",
+    "build:linux": "bun build --compile --minify --target=bun-linux-x64 src/index.ts --outfile dist/gscli-linux",
+    "build:macos": "bun build --compile --minify --target=bun-darwin-x64 src/index.ts --outfile dist/gscli-macos",
+    "build:windows": "bun build --compile --minify --target=bun-windows-x64 src/index.ts --outfile dist/gscli-windows.exe",
+    "start": "./dist/gscli"
+  },
+  "keywords": [
+    "cli",
+    "google",
+    "gmail",
+    "drive",
+    "calendar",
+    "ai",
+    "ai-tools",
+    "mcp",
+    "assistant"
+  ],
+  "author": "Shaharia Lab",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shaharia-lab/gscli"
+  },
+  "dependencies": {
+    "googleapis": "^140.0.1",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.1",
+    "typescript": "^5.6.3"
+  }
+}
+
