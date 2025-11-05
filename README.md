@@ -116,6 +116,16 @@ gscli auth status
 gscli auth logout
 ```
 
+### Self-Update
+
+```bash
+# Update to the latest version
+gscli update
+
+# Check for available updates
+gscli update check
+```
+
 ### Gmail Commands
 
 ```bash
