@@ -9,6 +9,17 @@ All notable changes to this project will be documented in this file.
 - Update check command (`gscli update check`) to check for available updates
 - Automatic binary replacement for seamless updates
 - Platform-specific binary detection (Linux, macOS, Windows)
+- **Enhanced Google Drive export formats:**
+  - Google Docs: PDF, Markdown, Plain Text, DOCX, HTML, EPUB
+  - Google Sheets: PDF, XLSX (all sheets), CSV (first sheet), TSV (first sheet), HTML
+  - Google Slides: PDF, PPTX, Plain Text
+  - Google Drawings: PDF, JPEG, PNG, SVG
+- Warning for CSV/TSV exports that only include the first sheet
+- Better error messages showing available formats for each file type
+- **Gmail folders/labels listing** (`gscli gmail folders-list`)
+  - View all Gmail folders and labels
+  - Separates system folders (INBOX, SENT, etc.) from user labels
+  - Shows label IDs for use with other commands
 
 ## [0.0.1] - 2025-11-05
 

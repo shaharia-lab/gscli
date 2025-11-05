@@ -62,7 +62,7 @@ export function createDriveCommand(): Command {
   drive
     .command('download <file-id>')
     .description('Download a file by its ID')
-    .option('--format <format>', 'Export format for Google Docs (pdf, original)', 'pdf')
+    .option('--format <format>', 'Export format: pdf, markdown, txt, docx (Docs) | csv, tsv, xlsx (Sheets) | pptx (Slides)', 'pdf')
     .option('-o, --output <path>', 'Output directory path')
     .action(async (fileId: string, options) => {
       let spinner = ora('Fetching file metadata...').start();
