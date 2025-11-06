@@ -1,4 +1,4 @@
-import { existsSync, createWriteStream, chmodSync, unlinkSync, renameSync } from 'fs';
+import { existsSync, createWriteStream, chmodSync, unlinkSync, renameSync, readlinkSync, realpathSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -41,16 +41,34 @@ function getCurrentBinaryPath(): string {
     throw new Error('Self-update is not available in development mode. Please use the compiled binary.');
   }
   
-  // For compiled binaries, get the real filesystem path
-  // Bun.main gives us the actual file path, not the virtual /$bunfs/root/ path
-  // @ts-ignore - Bun global is available in Bun runtime
-  if (typeof Bun !== 'undefined' && Bun.main) {
-    // @ts-ignore
-    return Bun.main;
+  // For Linux: /proc/self/exe gives us the real binary path
+  // This works even with Bun's virtual filesystem
+  if (process.platform === 'linux' && existsSync('/proc/self/exe')) {
+    try {
+      return realpathSync('/proc/self/exe');
+    } catch (e) {
+      // Continue to fallback
+    }
   }
   
-  // Fallback to argv
-  return process.argv[1] || process.argv[0];
+  // For macOS: Similar approach but different path
+  // TODO: Test on macOS
+  
+  // Fallback: Try to resolve argv paths
+  try {
+    if (process.argv[1] && !process.argv[1].includes('/$bunfs/')) {
+      return realpathSync(process.argv[1]);
+    }
+  } catch {
+    // Continue
+  }
+  
+  // Last resort
+  const path = process.argv[1] || process.argv[0];
+  throw new Error(
+    `Could not determine binary path. Detected path: ${path}\n` +
+    `This might be a virtual filesystem path. Please report this issue.`
+  );
 }
 
 /**
