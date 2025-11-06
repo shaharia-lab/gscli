@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.5] - 2025-11-06
+
+### Added
+- **Multi-account support** - Authenticate and manage multiple Google accounts
+- New command: \`gscli auth list\` - List all authenticated accounts
+- New command: \`gscli auth set-default <email>\` - Set default account
+- New command: \`gscli auth remove <email>\` - Remove specific account
+- Global \`--account <email>\` flag for all commands (gmail, drive, calendar)
+- Automatic email detection during authentication
+- Added \`userinfo.email\` scope for email retrieval
+
+### Fixed
+- Auth login command now exits properly after authentication (no more hanging)
+- Server timeout cleanup to prevent hanging process
+- Better error handling for user email fetching
+
+### Changed
+- Account storage moved to \`~/.config/gscli/accounts.json\`
+- Each account stores its own client credentials and tokens
+- Improved error messages for account-related issues
+
 ## [0.0.4] - 2025-11-06
 
 ### Fixed
