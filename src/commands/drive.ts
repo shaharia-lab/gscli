@@ -1,8 +1,9 @@
 import { Command } from 'commander';
 import { getAuthenticatedClient } from '../lib/auth.js';
-import { listFiles, searchFiles, downloadFile, getFileMetadata } from '../lib/drive.js';
-import { formatDriveFiles, showError, showSuccess, showInfo } from '../lib/formatter.js';
+import { listFiles, searchFiles, downloadFile, getFileMetadata, listComments } from '../lib/drive.js';
+import { formatDriveFiles, showError, showSuccess, showInfo, formatDate, truncate } from '../lib/formatter.js';
 import ora from 'ora';
+import chalk from 'chalk';
 
 export function createDriveCommand(): Command {
   const drive = new Command('drive');
@@ -84,6 +85,62 @@ export function createDriveCommand(): Command {
         
         spinner.stop();
         showSuccess(`File downloaded successfully to: ${outputPath}`);
+      } catch (error: any) {
+        spinner.stop();
+        showError(error.message);
+        process.exit(1);
+      }
+    });
+
+  // Comments command
+  drive
+    .command('comments <file-id>')
+    .description('List comments on a Google Drive file')
+    .option('--include-resolved', 'Include resolved comments (default: only unresolved)', false)
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
+    .action(async (fileId: string, options) => {
+      const spinner = ora('Fetching comments...').start();
+      
+      try {
+        const auth = await getAuthenticatedClient(options.account);
+        
+        // Get file metadata first
+        const file = await getFileMetadata(auth, fileId);
+        
+        const comments = await listComments(auth, fileId, {
+          includeResolved: options.includeResolved,
+        });
+        
+        spinner.stop();
+        
+        if (comments.length === 0) {
+          console.log(chalk.yellow(`\nNo ${options.includeResolved ? '' : 'unresolved '}comments found on: ${file.name}\n`));
+          return;
+        }
+        
+        console.log(chalk.bold.cyan(`\n💬 Comments on: ${file.name}`));
+        console.log(chalk.gray(`Found ${comments.length} comment(s)\n`));
+        
+        comments.forEach((comment, index) => {
+          const resolvedBadge = comment.resolved ? chalk.green(' [RESOLVED]') : chalk.yellow(' [OPEN]');
+          console.log(chalk.bold(`${index + 1}. ${comment.author}${resolvedBadge}`));
+          console.log(chalk.gray(`   Created: ${formatDate(comment.createdTime)}`));
+          
+          if (comment.quotedContent) {
+            console.log(chalk.dim(`   Quoted: "${truncate(comment.quotedContent, 60)}"`));
+          }
+          
+          console.log(chalk.white(`   ${comment.content}`));
+          
+          if (comment.replies.length > 0) {
+            console.log(chalk.gray(`   Replies (${comment.replies.length}):`));
+            comment.replies.forEach((reply) => {
+              console.log(chalk.gray(`     • ${reply.author}: ${truncate(reply.content, 80)}`));
+            });
+          }
+          
+          console.log('');
+        });
       } catch (error: any) {
         spinner.stop();
         showError(error.message);

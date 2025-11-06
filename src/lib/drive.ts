@@ -275,3 +275,67 @@ export async function getFileMetadata(
   }
 }
 
+export interface DriveComment {
+  id: string;
+  content: string;
+  author: string;
+  authorEmail?: string | null;
+  createdTime: string;
+  modifiedTime: string;
+  resolved: boolean;
+  quotedContent?: string;
+  replies: Array<{
+    id: string;
+    content: string;
+    author: string;
+    createdTime: string;
+  }>;
+}
+
+/**
+ * List comments on a file
+ */
+export async function listComments(
+  auth: OAuth2Client,
+  fileId: string,
+  options: {
+    includeResolved?: boolean;
+  } = {}
+): Promise<DriveComment[]> {
+  const drive = google.drive({ version: 'v3', auth });
+
+  try {
+    const response = await drive.comments.list({
+      fileId,
+      fields: 'comments(id, content, author, createdTime, modifiedTime, resolved, quotedFileContent, replies(id, content, author, createdTime))',
+      includeDeleted: false,
+    });
+
+    const comments = response.data.comments || [];
+    
+    // Filter out resolved comments if not requested
+    const filteredComments = options.includeResolved 
+      ? comments 
+      : comments.filter(c => !c.resolved);
+
+    return filteredComments.map((comment) => ({
+      id: comment.id!,
+      content: comment.content!,
+      author: comment.author?.displayName || 'Unknown',
+      authorEmail: comment.author?.emailAddress,
+      createdTime: comment.createdTime!,
+      modifiedTime: comment.modifiedTime!,
+      resolved: comment.resolved || false,
+      quotedContent: comment.quotedFileContent?.value,
+      replies: (comment.replies || []).map((reply) => ({
+        id: reply.id!,
+        content: reply.content!,
+        author: reply.author?.displayName || 'Unknown',
+        createdTime: reply.createdTime!,
+      })),
+    }));
+  } catch (error: any) {
+    throw new Error(`Failed to list comments: ${error.message}`);
+  }
+}
+

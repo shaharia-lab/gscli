@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { getAuthenticatedClient } from '../lib/auth.js';
-import { listMessages, searchMessages, getLabels } from '../lib/gmail.js';
-import { formatGmailMessages, showError } from '../lib/formatter.js';
+import { listMessages, searchMessages, getLabels, getMessage } from '../lib/gmail.js';
+import { formatGmailMessages, showError, formatDate } from '../lib/formatter.js';
 import ora from 'ora';
 import chalk from 'chalk';
 
@@ -52,6 +52,40 @@ export function createGmailCommand(): Command {
         
         spinner.stop();
         formatGmailMessages(messages);
+      } catch (error: any) {
+        spinner.stop();
+        showError(error.message);
+        process.exit(1);
+      }
+    });
+
+  // Read command
+  gmail
+    .command('read <message-id>')
+    .description('Read a single email by its ID')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
+    .action(async (messageId: string, options) => {
+      const spinner = ora('Fetching message...').start();
+      
+      try {
+        const auth = await getAuthenticatedClient(options.account);
+        const message = await getMessage(auth, messageId);
+        
+        spinner.stop();
+        
+        console.log(chalk.bold.cyan('\n📧 Email Message\n'));
+        console.log(chalk.bold('Subject: ') + message.subject);
+        console.log(chalk.gray('From: ') + message.from);
+        console.log(chalk.gray('To: ') + message.to);
+        console.log(chalk.gray('Date: ') + formatDate(message.date));
+        console.log(chalk.dim('ID: ') + message.id);
+        console.log(chalk.dim('Thread ID: ') + message.threadId);
+        console.log('');
+        console.log(chalk.bold('Body:'));
+        console.log(chalk.gray('─'.repeat(80)));
+        console.log(message.body);
+        console.log(chalk.gray('─'.repeat(80)));
+        console.log('');
       } catch (error: any) {
         spinner.stop();
         showError(error.message);

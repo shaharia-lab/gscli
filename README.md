@@ -199,6 +199,9 @@ gscli gmail list --folder SENT
 gscli gmail search "from:boss@example.com subject:report"
 gscli gmail search "is:unread after:2025/11/01"
 
+# Read a specific email by ID
+gscli gmail read <message-id>
+
 # List all folders/labels
 gscli gmail folders-list
 ```
@@ -234,6 +237,12 @@ gscli drive download <slides-id> --format pptx    # PowerPoint
 
 # Download to specific directory
 gscli drive download <file-id> --output ./downloads
+
+# List comments on a file (unresolved only)
+gscli drive comments <file-id>
+
+# List all comments including resolved
+gscli drive comments <file-id> --include-resolved
 ```
 
 ### Google Calendar Commands

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Gmail read command** (`gscli gmail read <message-id>`) - Read full email content by ID
+  - Shows subject, from, to, date, and full body
+  - Supports both plain text and HTML emails
+  - Extracts body from multipart messages
+- **Google Drive comments command** (`gscli drive comments <file-id>`) - List comments on files
+  - Shows unresolved comments by default
+  - `--include-resolved` flag to show all comments
+  - Displays author, content, creation date, and replies
+  - Shows quoted content from document
+  - Supports --account flag for multi-account usage
+
 ## [0.0.6] - 2025-11-06
 
 ### Added
