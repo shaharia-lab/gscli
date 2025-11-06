@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Persistent client credentials storage** (`--client` flag)
+  - Use `gscli auth login --client /path/to/client.json` to save client credentials
+  - Client ID and secret are saved to credentials file
+  - No need to keep client.json or set environment variables after first auth
+  - Backward compatible with existing methods
+
+### Changed
+- Credentials loading priority: saved credentials > --client flag > env var > local file
+- Improved error messages with helpful guidance for credential configuration
+
 ## [0.0.2] - 2025-11-05
 
 ### Added
