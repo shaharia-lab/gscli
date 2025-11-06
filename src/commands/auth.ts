@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import { authenticate, isAuthenticated, logout } from '../lib/auth.js';
+import { listAccounts, setDefaultAccount, removeAccount } from '../lib/accounts.js';
 import { showSuccess, showError, showInfo } from '../lib/formatter.js';
+import chalk from 'chalk';
 
 export function createAuthCommand(): Command {
   const auth = new Command('auth');
@@ -43,14 +45,68 @@ export function createAuthCommand(): Command {
       }
     });
 
-  // Logout command
+  // List accounts command
+  auth
+    .command('list')
+    .description('List all authenticated accounts')
+    .action(() => {
+      try {
+        const accounts = listAccounts();
+        
+        if (accounts.length === 0) {
+          showInfo('No authenticated accounts. Run "gscli auth login" to get started.');
+          return;
+        }
+        
+        console.log(chalk.bold.cyan(`\nAuthenticated accounts (${accounts.length}):\n`));
+        
+        accounts.forEach((account, index) => {
+          const defaultMarker = account.isDefault ? chalk.green(' (default)') : '';
+          console.log(chalk.bold(`${index + 1}. ${account.email}${defaultMarker}`));
+        });
+        console.log('');
+      } catch (error: any) {
+        showError(error.message);
+        process.exit(1);
+      }
+    });
+
+  // Set default account command
+  auth
+    .command('set-default <email>')
+    .description('Set the default account to use')
+    .action((email: string) => {
+      try {
+        setDefaultAccount(email);
+        showSuccess(`Default account set to: ${email}`);
+      } catch (error: any) {
+        showError(error.message);
+        process.exit(1);
+      }
+    });
+
+  // Remove account command
+  auth
+    .command('remove <email>')
+    .description('Remove an authenticated account')
+    .action((email: string) => {
+      try {
+        removeAccount(email);
+        showSuccess(`Account removed: ${email}`);
+      } catch (error: any) {
+        showError(error.message);
+        process.exit(1);
+      }
+    });
+
+  // Logout command (remove all)
   auth
     .command('logout')
-    .description('Remove stored credentials')
+    .description('Remove all stored credentials')
     .action(() => {
       try {
         logout();
-        showSuccess('Successfully logged out. Your credentials have been removed.');
+        showSuccess('Successfully logged out. All credentials have been removed.');
       } catch (error: any) {
         showError(error.message);
         process.exit(1);

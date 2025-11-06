@@ -16,11 +16,12 @@ export function createCalendarCommand(): Command {
     .option('-s, --start <date>', 'Start date (YYYY-MM-DD)')
     .option('-e, --end <date>', 'End date (YYYY-MM-DD)')
     .option('-l, --limit <number>', 'Maximum number of events', '50')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (options) => {
       const spinner = ora('Fetching events...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
 
         const events = await listEvents(auth, {
@@ -45,11 +46,12 @@ export function createCalendarCommand(): Command {
     .description('Search calendar events by text')
     .option('-l, --limit <number>', 'Maximum number of results', '50')
     .option('-d, --days <number>', 'Number of days ahead to search', '90')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (query: string, options) => {
       const spinner = ora('Searching events...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
         const daysAhead = parseInt(options.days);
 
