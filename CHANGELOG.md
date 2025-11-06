@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.6] - 2025-11-06
+
+### Added
+- Sudo detection for self-updates
+- User directory installation guide in README
+- Write permission checking before update
+- Helpful error messages with actionable commands
+
+### Improved
+- README installation section with recommended user directory approach
+- Pre-built binaries section with detailed installation commands
+- Better update experience with clear guidance
+
 ## [0.0.5] - 2025-11-06
 
 ### Added
