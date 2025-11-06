@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.4] - 2025-11-06
+
+### Fixed
+- Self-update detection now correctly identifies compiled binaries
+- Fixed false positive where compiled binary was detected as development mode
+
 ## [0.0.3] - 2025-11-06
 
 ### Added
