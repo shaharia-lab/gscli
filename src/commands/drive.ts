@@ -14,11 +14,12 @@ export function createDriveCommand(): Command {
     .description('List files in your Google Drive')
     .option('-f, --folder <name-or-id>', 'Folder name or ID to list from')
     .option('-l, --limit <number>', 'Maximum number of files to list', '100')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (options) => {
       const spinner = ora('Fetching files...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
 
         const files = await listFiles(auth, {
@@ -40,11 +41,12 @@ export function createDriveCommand(): Command {
     .command('search <query>')
     .description('Search for files by name')
     .option('-l, --limit <number>', 'Maximum number of results', '50')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (query: string, options) => {
       const spinner = ora('Searching files...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
 
         const files = await searchFiles(auth, query, limit);
@@ -64,11 +66,12 @@ export function createDriveCommand(): Command {
     .description('Download a file by its ID')
     .option('--format <format>', 'Export format: pdf, markdown, txt, docx (Docs) | csv, tsv, xlsx (Sheets) | pptx (Slides)', 'pdf')
     .option('-o, --output <path>', 'Output directory path')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (fileId: string, options) => {
       let spinner = ora('Fetching file metadata...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
 
         // Get file metadata first
         const metadata = await getFileMetadata(auth, fileId);

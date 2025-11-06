@@ -15,11 +15,12 @@ export function createGmailCommand(): Command {
     .description('List recent emails from your inbox')
     .option('-l, --limit <number>', 'Maximum number of messages to list', '10')
     .option('-f, --folder <label>', 'Folder/label to list from (e.g., "INBOX", "SENT", "DRAFT")', 'INBOX')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (options) => {
       const spinner = ora('Fetching messages...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
         const label = options.folder.toUpperCase();
 
@@ -39,11 +40,12 @@ export function createGmailCommand(): Command {
     .command('search <query>')
     .description('Search emails using Gmail query syntax')
     .option('-l, --limit <number>', 'Maximum number of results', '10')
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (query: string, options) => {
       const spinner = ora('Searching messages...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
 
         const messages = await searchMessages(auth, query, limit);
@@ -61,11 +63,12 @@ export function createGmailCommand(): Command {
   gmail
     .command('folders-list')
     .description('List all Gmail folders/labels')
-    .action(async () => {
+    .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
+    .action(async (options) => {
       const spinner = ora('Fetching folders...').start();
       
       try {
-        const auth = await getAuthenticatedClient();
+        const auth = await getAuthenticatedClient(options.account);
         const labels = await getLabels(auth);
         
         spinner.stop();

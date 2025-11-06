@@ -1,14 +1,21 @@
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
+import { 
+  saveAccount, 
+  getAccount, 
+  getUserEmail, 
+  AccountCredentials 
+} from './accounts.js';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/userinfo.email',
 ];
 
 const CONFIG_DIR = join(homedir(), '.config', 'gscli');
@@ -153,34 +160,52 @@ function saveCredentials(credentials: Credentials): void {
 /**
  * Get an authenticated OAuth2 client
  */
-export async function getAuthenticatedClient(): Promise<OAuth2Client> {
-  const oauth2Client = createOAuth2Client();
-  const storedCredentials = loadStoredCredentials();
+export async function getAuthenticatedClient(accountEmail?: string): Promise<OAuth2Client> {
+  const account = getAccount(accountEmail);
 
-  if (!storedCredentials) {
-    throw new Error(
-      'No stored credentials found. Please run "gscli auth login" first.'
-    );
+  if (!account) {
+    if (accountEmail) {
+      throw new Error(
+        `Account not found: ${accountEmail}. Run "gscli auth list" to see available accounts.`
+      );
+    } else {
+      throw new Error(
+        'No authenticated accounts found. Please run "gscli auth login" first.'
+      );
+    }
   }
 
-  oauth2Client.setCredentials(storedCredentials);
+  const oauth2Client = new google.auth.OAuth2(
+    account.client_id,
+    account.client_secret,
+    'http://127.0.0.1:8080'
+  );
+
+  oauth2Client.setCredentials({
+    access_token: account.access_token,
+    refresh_token: account.refresh_token,
+    scope: account.scope,
+    token_type: account.token_type,
+    expiry_date: account.expiry_date,
+  });
 
   // Check if token needs refresh
-  if (storedCredentials.expiry_date && storedCredentials.expiry_date < Date.now()) {
+  if (account.expiry_date && account.expiry_date < Date.now()) {
     try {
       const { credentials } = await oauth2Client.refreshAccessToken();
-      const newCredentials: Credentials = {
+      const updatedAccount: AccountCredentials = {
+        ...account,
         access_token: credentials.access_token!,
-        refresh_token: credentials.refresh_token || storedCredentials.refresh_token,
+        refresh_token: credentials.refresh_token || account.refresh_token,
         scope: credentials.scope!,
         token_type: credentials.token_type!,
         expiry_date: credentials.expiry_date!,
       };
-      saveCredentials(newCredentials);
-      oauth2Client.setCredentials(newCredentials);
+      saveAccount(updatedAccount);
+      oauth2Client.setCredentials(credentials);
     } catch (error) {
       throw new Error(
-        'Failed to refresh access token. Please run "gscli auth login" again.'
+        `Failed to refresh access token for ${account.email}. Please re-authenticate with "gscli auth login".`
       );
     }
   }
@@ -209,6 +234,8 @@ export async function authenticate(clientPath?: string): Promise<void> {
 
   // Create a temporary server to handle the callback
   return new Promise((resolve, reject) => {
+    let timeoutId: NodeJS.Timeout;
+    
     const server = createServer(
       async (req: IncomingMessage, res: ServerResponse) => {
         try {
@@ -219,6 +246,7 @@ export async function authenticate(clientPath?: string): Promise<void> {
             if (!code) {
               res.writeHead(400, { 'Content-Type': 'text/html' });
               res.end('<h1>Error: No authorization code received</h1>');
+              clearTimeout(timeoutId);
               server.close();
               reject(new Error('No authorization code received'));
               return;
@@ -230,12 +258,17 @@ export async function authenticate(clientPath?: string): Promise<void> {
             if (!tokens.refresh_token) {
               res.writeHead(400, { 'Content-Type': 'text/html' });
               res.end('<h1>Error: No refresh token received</h1>');
+              clearTimeout(timeoutId);
               server.close();
               reject(new Error('No refresh token received'));
               return;
             }
 
-            const credentials: Credentials = {
+            // Get user email
+            const userEmail = await getUserEmail(tokens.access_token!);
+            
+            const accountCredentials: AccountCredentials = {
+              email: userEmail,
               client_id: clientConfig.client_id,
               client_secret: clientConfig.client_secret,
               access_token: tokens.access_token!,
@@ -245,8 +278,10 @@ export async function authenticate(clientPath?: string): Promise<void> {
               expiry_date: tokens.expiry_date!,
             };
 
-            saveCredentials(credentials);
+            // Save to multi-account system
+            saveAccount(accountCredentials);
             
+            console.log(`✅ Authenticated as: ${userEmail}`);
             console.log('✅ Client credentials saved. You can now delete client.json if desired.');
 
             res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -260,13 +295,18 @@ export async function authenticate(clientPath?: string): Promise<void> {
               </html>
             `);
 
-            server.close();
             console.log('✅ Authentication successful! Credentials saved.');
-            resolve();
+            
+            // Clear timeout and close server properly
+            clearTimeout(timeoutId);
+            server.close(() => {
+              resolve();
+            });
           }
         } catch (error) {
           res.writeHead(500, { 'Content-Type': 'text/html' });
           res.end('<h1>Error during authentication</h1>');
+          clearTimeout(timeoutId);
           server.close();
           reject(error);
         }
@@ -278,7 +318,7 @@ export async function authenticate(clientPath?: string): Promise<void> {
     });
 
     // Handle timeout
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       server.close();
       reject(new Error('Authentication timeout (5 minutes)'));
     }, 5 * 60 * 1000);
@@ -293,11 +333,19 @@ export function isAuthenticated(): boolean {
 }
 
 /**
- * Remove stored credentials (logout)
+ * Remove all stored credentials (logout all accounts)
  */
 export function logout(): void {
+  const { ACCOUNTS_FILE } = require('./accounts.js');
+  const ACCOUNTS_PATH = join(homedir(), '.config', 'gscli', 'accounts.json');
+  
+  if (existsSync(ACCOUNTS_PATH)) {
+    unlinkSync(ACCOUNTS_PATH);
+  }
+  
+  // Also remove old credentials.json if it exists
   if (existsSync(CREDENTIALS_PATH)) {
-    writeFileSync(CREDENTIALS_PATH, '');
+    unlinkSync(CREDENTIALS_PATH);
   }
 }
 
