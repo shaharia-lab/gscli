@@ -47,7 +47,13 @@ bun install
 # Build the binary
 bun run build
 
-# Copy to PATH (optional)
+# Install to user directory (recommended - no sudo needed)
+mkdir -p ~/.local/bin
+cp dist/gscli ~/.local/bin/
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Or install system-wide (requires sudo for updates)
 sudo cp dist/gscli /usr/local/bin/
 ```
 
@@ -55,9 +61,27 @@ sudo cp dist/gscli /usr/local/bin/
 
 Download pre-built binaries from [GitHub Releases](https://github.com/shaharia-lab/gscli/releases):
 
-- Linux x86-64: `gscli-linux`
-- macOS x86-64: `gscli-macos`
-- Windows x64: `gscli-windows.exe`
+```bash
+# Linux (user directory - recommended)
+curl -L https://github.com/shaharia-lab/gscli/releases/latest/download/gscli-linux -o gscli
+chmod +x gscli
+mkdir -p ~/.local/bin
+mv gscli ~/.local/bin/
+export PATH="$HOME/.local/bin:$PATH"
+
+# Or Linux (system-wide)
+curl -L https://github.com/shaharia-lab/gscli/releases/latest/download/gscli-linux -o gscli
+chmod +x gscli
+sudo mv gscli /usr/local/bin/
+
+# macOS
+curl -L https://github.com/shaharia-lab/gscli/releases/latest/download/gscli-macos -o gscli
+chmod +x gscli
+mv gscli ~/.local/bin/  # or: sudo mv gscli /usr/local/bin/
+
+# Windows
+# Download gscli-windows.exe and add to PATH
+```
 
 ## Setup
 
@@ -127,6 +151,36 @@ gscli update
 
 # Check for available updates
 gscli update check
+```
+
+#### Recommended Installation for Easy Updates
+
+For the best update experience, install `gscli` in a user directory:
+
+```bash
+# Create user bin directory
+mkdir -p ~/.local/bin
+
+# Copy gscli there
+cp /path/to/gscli ~/.local/bin/
+
+# Add to your PATH (add to ~/.bashrc or ~/.zshrc)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Now update without sudo
+gscli update
+```
+
+**Why?**
+- ✅ No sudo required for updates
+- ✅ User-owned directory
+- ✅ Clean and simple updates
+- ✅ No system-wide changes needed
+
+**If installed in `/usr/local/bin/` (requires sudo):**
+```bash
+sudo gscli update
 ```
 
 ### Gmail Commands
