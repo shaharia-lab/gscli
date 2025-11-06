@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-11-06
+
+### Fixed
+- Self-update now works correctly on Linux
+- Use /proc/self/exe to get real binary path instead of Bun virtual filesystem path
+- Tested and verified: update completes successfully
+
 ## [0.1.0] - 2025-11-06
 
 ### Added
