@@ -1,6 +1,6 @@
 {
   "name": "gscli",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "Google Service CLI - A fast CLI tool for AI agents and developers to access Gmail, Drive, and Calendar from terminal",
   "type": "module",
   "main": "dist/index.js",

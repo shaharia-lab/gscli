@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-11-06
+
 ### Added
 - **Gmail read command** (`gscli gmail read <message-id>`) - Read full email content by ID
   - Shows subject, from, to, date, and full body
