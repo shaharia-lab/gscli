@@ -12,7 +12,7 @@ const program = new Command();
 program
   .name('gscli')
   .description('Google Service CLI - Fast CLI tool for AI agents and developers to access Gmail, Drive, and Calendar')
-  .version('0.0.2');
+  .version('0.0.3');
 
 // Add commands
 program.addCommand(createAuthCommand());

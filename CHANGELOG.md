@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.3] - 2025-11-06
+
 ### Added
 - **Persistent client credentials storage** (`--client` flag)
   - Use `gscli auth login --client /path/to/client.json` to save client credentials
