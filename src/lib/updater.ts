@@ -35,16 +35,21 @@ function getBinaryName(): string {
  */
 function getCurrentBinaryPath(): string {
   // Check if running via bun run (development mode)
-  // In dev mode, process.argv[0] will be the bun executable
-  // In compiled binary, process.argv[0] and argv[1] are the same (the binary itself)
   const isDevMode = process.argv[0].includes('bun') && process.argv[1].includes('src/index.ts');
   
   if (isDevMode) {
     throw new Error('Self-update is not available in development mode. Please use the compiled binary.');
   }
   
-  // For compiled binaries, the binary path is in argv[1] or argv[0]
-  // Bun compiled binaries use argv[1]
+  // For compiled binaries, get the real filesystem path
+  // Bun.main gives us the actual file path, not the virtual /$bunfs/root/ path
+  // @ts-ignore - Bun global is available in Bun runtime
+  if (typeof Bun !== 'undefined' && Bun.main) {
+    // @ts-ignore
+    return Bun.main;
+  }
+  
+  // Fallback to argv
   return process.argv[1] || process.argv[0];
 }
 
@@ -139,6 +144,27 @@ export async function checkForUpdate(): Promise<{
 }
 
 /**
+ * Check if path requires sudo
+ */
+function requiresSudo(path: string): boolean {
+  const systemPaths = ['/usr/local/bin/', '/usr/bin/', '/opt/', '/bin/', '/sbin/'];
+  return systemPaths.some(p => path.startsWith(p));
+}
+
+/**
+ * Check if we have write permission
+ */
+function canWrite(path: string): boolean {
+  try {
+    const { accessSync, constants } = require('fs');
+    accessSync(path, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Perform self-update
  */
 export async function performUpdate(): Promise<void> {
@@ -166,6 +192,29 @@ export async function performUpdate(): Promise<void> {
     
     // Get current binary path
     const currentPath = getCurrentBinaryPath();
+    
+    // Check write permissions
+    if (!canWrite(currentPath)) {
+      const needsSudo = requiresSudo(currentPath);
+      
+      if (needsSudo) {
+        throw new Error(
+          `Cannot write to ${currentPath}. This location requires elevated privileges.\n\n` +
+          `Please run with sudo:\n` +
+          `  sudo gscli update\n\n` +
+          `Or install in a user directory (recommended):\n` +
+          `  mkdir -p ~/.local/bin\n` +
+          `  cp ${currentPath} ~/.local/bin/gscli\n` +
+          `  # Add to PATH: export PATH="$HOME/.local/bin:$PATH"\n` +
+          `  # Then run: gscli update`
+        );
+      } else {
+        throw new Error(
+          `Cannot write to ${currentPath}. Permission denied.\n` +
+          `Check file permissions or run with appropriate privileges.`
+        );
+      }
+    }
     
     // Download to temporary location
     const tempPath = join(tmpdir(), `gscli-update-${Date.now()}`);
