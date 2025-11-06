@@ -136,17 +136,27 @@ export function removeAccount(email: string): void {
  * Get user email from Google API
  */
 export async function getUserEmail(accessToken: string): Promise<string> {
-  const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch user email');
+  try {
+    const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API responded with ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json() as { email: string };
+    
+    if (!data.email) {
+      throw new Error('Email not found in user info response');
+    }
+    
+    return data.email;
+  } catch (error: any) {
+    throw new Error(`Failed to fetch user email: ${error.message}`);
   }
-  
-  const data = await response.json() as { email: string };
-  return data.email;
 }
 
