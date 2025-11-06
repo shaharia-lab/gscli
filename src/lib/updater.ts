@@ -34,12 +34,18 @@ function getBinaryName(): string {
  * Get the current binary path
  */
 function getCurrentBinaryPath(): string {
-  // In production, this is the path to the executable
-  // For dev mode, we'll use a placeholder
-  if (process.argv[1].includes('bun')) {
+  // Check if running via bun run (development mode)
+  // In dev mode, process.argv[0] will be the bun executable
+  // In compiled binary, process.argv[0] and argv[1] are the same (the binary itself)
+  const isDevMode = process.argv[0].includes('bun') && process.argv[1].includes('src/index.ts');
+  
+  if (isDevMode) {
     throw new Error('Self-update is not available in development mode. Please use the compiled binary.');
   }
-  return process.argv[1];
+  
+  // For compiled binaries, the binary path is in argv[1] or argv[0]
+  // Bun compiled binaries use argv[1]
+  return process.argv[1] || process.argv[0];
 }
 
 /**
