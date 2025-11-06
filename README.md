@@ -73,33 +73,36 @@ Download pre-built binaries from [GitHub Releases](https://github.com/shaharia-l
 5. Select **Desktop app** as application type
 6. Download the JSON file or copy the credentials
 
-### 2. Configure Credentials
+### 2. Authenticate (One-Time Setup)
 
-**Option A: Local File** (Recommended for personal use)
+**Recommended: Use --client flag** (saves credentials permanently)
 
 ```bash
-# Save as client.json in your working directory
-cat > client.json << 'EOF'
-{
-  "client_id": "your-client-id.apps.googleusercontent.com",
-  "client_secret": "your-client-secret"
-}
-EOF
+# Download client.json from Google Cloud Console first
+
+# Authenticate and save client credentials
+gscli auth login --client /path/to/client.json
+
+# ✅ Client credentials are now saved!
+# ✅ You can delete client.json if desired
+# ✅ All future commands work without any setup!
 ```
 
-**Option B: Environment Variable** (Recommended for CI/CD)
+**Alternative Methods:**
 
+**Option A: Local File**
 ```bash
-export GOOGLE_CLIENT_CREDENTIAL_FILE="/path/to/client.json"
-```
-
-### 3. Authenticate
-
-```bash
+# Save as ./client.json in current directory
 gscli auth login
 ```
 
-This opens your browser for Google OAuth2 authentication. Tokens are stored securely in `~/.config/gscli/credentials.json`.
+**Option B: Environment Variable**
+```bash
+export GOOGLE_CLIENT_CREDENTIAL_FILE="/path/to/client.json"
+gscli auth login
+```
+
+This opens your browser for Google OAuth2 authentication. Credentials are stored securely in `~/.config/gscli/credentials.json`.
 
 ## Usage
 

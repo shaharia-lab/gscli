@@ -16,6 +16,8 @@ const CREDENTIALS_PATH = join(CONFIG_DIR, 'credentials.json');
 const DEFAULT_CLIENT_CONFIG_PATH = join(process.cwd(), 'client.json');
 
 interface Credentials {
+  client_id?: string;
+  client_secret?: string;
   access_token: string;
   refresh_token: string;
   scope: string;
@@ -24,13 +26,44 @@ interface Credentials {
 }
 
 /**
- * Load client credentials from file
+ * Load client credentials
  * Priority:
- * 1. Path specified in GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
- * 2. ./client.json in current directory
+ * 1. Saved in credentials.json (from previous auth login --client)
+ * 2. Path specified in GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
+ * 3. ./client.json in current directory
  */
-export function loadClientCredentials() {
-  // 1. Check GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
+export function loadClientCredentials(clientPath?: string) {
+  // 1. First, check if we have saved client credentials in credentials.json
+  const storedCredentials = loadStoredCredentials();
+  if (storedCredentials && storedCredentials.client_id && storedCredentials.client_secret) {
+    return {
+      client_id: storedCredentials.client_id,
+      client_secret: storedCredentials.client_secret,
+    };
+  }
+
+  // 2. Check provided path (from --client flag)
+  if (clientPath) {
+    try {
+      if (existsSync(clientPath)) {
+        const content = readFileSync(clientPath, 'utf-8');
+        const credentials = JSON.parse(content);
+        const creds = credentials.installed || credentials.web || credentials;
+        
+        if (!creds.client_id || !creds.client_secret) {
+          throw new Error('Invalid credentials format: missing client_id or client_secret');
+        }
+        
+        return creds;
+      } else {
+        throw new Error(`Client file not found: ${clientPath}`);
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to load client credentials from ${clientPath}: ${error.message}`);
+    }
+  }
+
+  // 3. Check GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
   const envPath = process.env.GOOGLE_CLIENT_CREDENTIAL_FILE;
   const credentialPath = envPath || DEFAULT_CLIENT_CONFIG_PATH;
 
@@ -61,17 +94,19 @@ Google OAuth2 client credentials not found!
 
 Please provide credentials using one of these methods:
 
-1. Environment Variable (recommended for production):
+1. During auth login (saves credentials for future use):
+   gscli auth login --client /path/to/client.json
+
+2. Environment Variable:
    export GOOGLE_CLIENT_CREDENTIAL_FILE="/path/to/your/client.json"
 
-2. Local File (default):
+3. Local File:
    Create a file named "client.json" in the current directory
-   Format: {"client_id": "...", "client_secret": "..."}
 
 To get credentials:
 1. Go to https://console.cloud.google.com/apis/credentials
 2. Create OAuth 2.0 Client ID (Desktop app)
-3. Download the JSON file and save as client.json
+3. Download the JSON file
 
 Current search path: ${credentialPath}
   `);
@@ -80,8 +115,8 @@ Current search path: ${credentialPath}
 /**
  * Create an OAuth2 client with the loaded credentials
  */
-export function createOAuth2Client(): OAuth2Client {
-  const clientConfig = loadClientCredentials();
+export function createOAuth2Client(clientPath?: string): OAuth2Client {
+  const clientConfig = loadClientCredentials(clientPath);
   const oauth2Client = new google.auth.OAuth2(
     clientConfig.client_id,
     clientConfig.client_secret,
@@ -156,8 +191,9 @@ export async function getAuthenticatedClient(): Promise<OAuth2Client> {
 /**
  * Perform OAuth2 authentication flow
  */
-export async function authenticate(): Promise<void> {
-  const oauth2Client = createOAuth2Client();
+export async function authenticate(clientPath?: string): Promise<void> {
+  const clientConfig = loadClientCredentials(clientPath);
+  const oauth2Client = createOAuth2Client(clientPath);
 
   // Generate authorization URL
   const authUrl = oauth2Client.generateAuthUrl({
@@ -200,6 +236,8 @@ export async function authenticate(): Promise<void> {
             }
 
             const credentials: Credentials = {
+              client_id: clientConfig.client_id,
+              client_secret: clientConfig.client_secret,
               access_token: tokens.access_token!,
               refresh_token: tokens.refresh_token,
               scope: tokens.scope!,
@@ -208,6 +246,8 @@ export async function authenticate(): Promise<void> {
             };
 
             saveCredentials(credentials);
+            
+            console.log('✅ Client credentials saved. You can now delete client.json if desired.');
 
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(`

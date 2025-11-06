@@ -10,15 +10,21 @@ export function createAuthCommand(): Command {
   auth
     .command('login')
     .description('Authenticate with Google OAuth2')
-    .action(async () => {
+    .option('--client <path>', 'Path to client credentials JSON file (saves for future use)')
+    .action(async (options) => {
       try {
         if (isAuthenticated()) {
           showInfo('You are already authenticated. Use "gscli auth logout" to log out first.');
           return;
         }
 
-        await authenticate();
+        await authenticate(options.client);
         showSuccess('Successfully authenticated! You can now use gscli commands.');
+        
+        if (options.client) {
+          console.log('💡 Client credentials saved to credentials file.');
+          console.log('   You can now delete the client.json file if desired.');
+        }
       } catch (error: any) {
         showError(error.message);
         process.exit(1);
