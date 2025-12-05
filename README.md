@@ -324,6 +324,48 @@ src/
     └── formatter.ts     # Output formatting
 ```
 
+## Custom Build with Embedded Credentials
+
+For advanced users who want to distribute a custom build with embedded OAuth2 credentials, you can inject your Google client credentials directly during the build process. This eliminates the need for users to provide credentials via the `--client` flag or environment variables.
+
+### Benefits
+
+- No need to distribute or manage `client.json` files
+- Users can authenticate immediately without additional setup
+- Ideal for internal tools or controlled distribution
+
+### Build Command
+
+```bash
+# 1. Export your credentials as environment variables
+export GOOGLE_CLIENT_ID="your-client-id-here.apps.googleusercontent.com"
+export GOOGLE_CLIENT_SECRET="your-client-secret-here"
+
+# 2. Build with embedded credentials
+bun run build:custom              # Build for current platform
+bun run build:custom-all          # Build for all platforms
+bun run build:custom-linux        # Build for Linux only
+bun run build:custom-macos        # Build for macOS only
+bun run build:custom-windows      # Build for Windows only
+```
+
+The built binaries will be in the `dist/` folder with the `-custom` suffix (e.g., `dist/gscli-custom-linux`).
+
+### Important Notes
+
+- The credentials are embedded in the compiled binary at build time
+- Users of your custom build will still need to authenticate via OAuth2 (`gscli auth login`)
+- This is suitable for internal distribution or when you trust the users
+- For public distribution, it's recommended to let users provide their own credentials
+
+### Security Considerations
+
+When building with embedded credentials:
+- Only distribute to trusted users or within your organization
+- Consider the OAuth consent screen settings in Google Cloud Console
+- Users will authenticate with their own Google accounts, but using your OAuth2 app
+- Monitor usage through Google Cloud Console
+
 ## Development
 
 ```bash
