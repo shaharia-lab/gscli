@@ -212,6 +212,9 @@ gscli gmail folders-list
 # List files in root directory
 gscli drive list
 
+# List files including shared with you
+gscli drive list --include-shared
+
 # List files in specific folder
 gscli drive list --folder "Project Docs"
 
@@ -298,6 +301,9 @@ gscli calendar search "standup"
 ```bash
 # List recent documents
 gscli drive list --limit 10
+
+# List documents including those shared with you
+gscli drive list --include-shared --limit 20
 
 # Search for specific docs
 gscli drive search "PRD"
