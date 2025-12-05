@@ -36,8 +36,9 @@ interface Credentials {
  * Load client credentials
  * Priority:
  * 1. Saved in credentials.json (from previous auth login --client)
- * 2. Path specified in GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
- * 3. ./client.json in current directory
+ * 2. Build-time injected environment variables (GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET)
+ * 3. Path specified in GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
+ * 4. ./client.json in current directory
  */
 export function loadClientCredentials(clientPath?: string) {
   // 1. First, check if we have saved client credentials in credentials.json
@@ -49,18 +50,29 @@ export function loadClientCredentials(clientPath?: string) {
     };
   }
 
-  // 2. Check provided path (from --client flag)
+  // 2. Check for build-time injected environment variables
+  const envClientId = process.env.GOOGLE_CLIENT_ID;
+  const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (envClientId && envClientSecret) {
+    return {
+      client_id: envClientId,
+      client_secret: envClientSecret,
+    };
+  }
+
+  // 3. Check provided path (from --client flag)
   if (clientPath) {
     try {
       if (existsSync(clientPath)) {
         const content = readFileSync(clientPath, 'utf-8');
         const credentials = JSON.parse(content);
         const creds = credentials.installed || credentials.web || credentials;
-        
+
         if (!creds.client_id || !creds.client_secret) {
           throw new Error('Invalid credentials format: missing client_id or client_secret');
         }
-        
+
         return creds;
       } else {
         throw new Error(`Client file not found: ${clientPath}`);
@@ -70,7 +82,7 @@ export function loadClientCredentials(clientPath?: string) {
     }
   }
 
-  // 3. Check GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
+  // 4. Check GOOGLE_CLIENT_CREDENTIAL_FILE environment variable
   const envPath = process.env.GOOGLE_CLIENT_CREDENTIAL_FILE;
   const credentialPath = envPath || DEFAULT_CLIENT_CONFIG_PATH;
 
@@ -78,14 +90,14 @@ export function loadClientCredentials(clientPath?: string) {
     if (existsSync(credentialPath)) {
       const content = readFileSync(credentialPath, 'utf-8');
       const credentials = JSON.parse(content);
-      
+
       // Support both Google Cloud Console formats
       const creds = credentials.installed || credentials.web || credentials;
-      
+
       if (!creds.client_id || !creds.client_secret) {
         throw new Error('Invalid credentials format: missing client_id or client_secret');
       }
-      
+
       return creds;
     }
   } catch (error: any) {
@@ -104,10 +116,15 @@ Please provide credentials using one of these methods:
 1. During auth login (saves credentials for future use):
    gscli auth login --client /path/to/client.json
 
-2. Environment Variable:
+2. Build-time injection (for custom builds):
+   bun build ./src/index.ts --compile --outfile my-cli \\
+     --define process.env.GOOGLE_CLIENT_ID="'YOUR_CLIENT_ID'" \\
+     --define process.env.GOOGLE_CLIENT_SECRET="'YOUR_CLIENT_SECRET'"
+
+3. Environment Variable:
    export GOOGLE_CLIENT_CREDENTIAL_FILE="/path/to/your/client.json"
 
-3. Local File:
+4. Local File:
    Create a file named "client.json" in the current directory
 
 To get credentials:

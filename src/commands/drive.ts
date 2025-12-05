@@ -15,10 +15,11 @@ export function createDriveCommand(): Command {
     .description('List files in your Google Drive')
     .option('-f, --folder <name-or-id>', 'Folder name or ID to list from')
     .option('-l, --limit <number>', 'Maximum number of files to list', '100')
+    .option('--include-shared', 'Include files shared with you (not just files in your Drive folders)')
     .option('-a, --account <email>', 'Google account email to use (uses default if not specified)')
     .action(async (options) => {
       const spinner = ora('Fetching files...').start();
-      
+
       try {
         const auth = await getAuthenticatedClient(options.account);
         const limit = parseInt(options.limit);
@@ -26,8 +27,9 @@ export function createDriveCommand(): Command {
         const files = await listFiles(auth, {
           folder: options.folder,
           limit,
+          includeShared: options.includeShared,
         });
-        
+
         spinner.stop();
         formatDriveFiles(files);
       } catch (error: any) {

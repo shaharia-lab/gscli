@@ -14,6 +14,11 @@
     "build:linux": "bun build --compile --minify --target=bun-linux-x64 src/index.ts --outfile dist/gscli-linux",
     "build:macos": "bun build --compile --minify --target=bun-darwin-x64 src/index.ts --outfile dist/gscli-macos",
     "build:windows": "bun build --compile --minify --target=bun-windows-x64 src/index.ts --outfile dist/gscli-windows.exe",
+    "build:custom": "bun build --compile --minify --sourcemap src/index.ts --outfile dist/gscli-custom --define process.env.GOOGLE_CLIENT_ID=\"'$GOOGLE_CLIENT_ID'\" --define process.env.GOOGLE_CLIENT_SECRET=\"'$GOOGLE_CLIENT_SECRET'\"",
+    "build:custom-all": "bun run build:custom-linux && bun run build:custom-macos && bun run build:custom-windows",
+    "build:custom-linux": "bun build --compile --minify --target=bun-linux-x64 src/index.ts --outfile dist/gscli-custom-linux --define process.env.GOOGLE_CLIENT_ID=\"'$GOOGLE_CLIENT_ID'\" --define process.env.GOOGLE_CLIENT_SECRET=\"'$GOOGLE_CLIENT_SECRET'\"",
+    "build:custom-macos": "bun build --compile --minify --target=bun-darwin-x64 src/index.ts --outfile dist/gscli-custom-macos --define process.env.GOOGLE_CLIENT_ID=\"'$GOOGLE_CLIENT_ID'\" --define process.env.GOOGLE_CLIENT_SECRET=\"'$GOOGLE_CLIENT_SECRET'\"",
+    "build:custom-windows": "bun build --compile --minify --target=bun-windows-x64 src/index.ts --outfile dist/gscli-custom-windows.exe --define process.env.GOOGLE_CLIENT_ID=\"'$GOOGLE_CLIENT_ID'\" --define process.env.GOOGLE_CLIENT_SECRET=\"'$GOOGLE_CLIENT_SECRET'\"",
     "start": "./dist/gscli"
   },
   "keywords": [

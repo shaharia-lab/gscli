@@ -59,6 +59,7 @@ export async function listFiles(
   options: {
     folder?: string;
     limit?: number;
+    includeShared?: boolean;
   } = {}
 ): Promise<DriveFile[]> {
   const drive = google.drive({ version: 'v3', auth });
@@ -66,7 +67,7 @@ export async function listFiles(
 
   try {
     let query = "trashed = false";
-    
+
     // If folder is specified, find it first
     if (options.folder) {
       // Try to find folder by name or use as ID
@@ -80,6 +81,9 @@ export async function listFiles(
       const folder = folderResponse.data.files?.[0];
       const folderId = folder?.id || options.folder;
       query = `'${folderId}' in parents and trashed = false`;
+    } else if (options.includeShared) {
+      // List all files including shared with me
+      query = "trashed = false";
     } else {
       // List root files only
       query = "'root' in parents and trashed = false";
@@ -90,10 +94,11 @@ export async function listFiles(
       pageSize: limit,
       fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink)',
       orderBy: 'modifiedTime desc',
+      ...(options.includeShared && { corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true }),
     });
 
     const files = response.data.files || [];
-    
+
     return files.map((file) => ({
       id: file.id!,
       name: file.name!,
