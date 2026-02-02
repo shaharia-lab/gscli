@@ -142,3 +142,12 @@ jobs:
             gscli calendar list
             ```
 
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: create-release
+    uses: shaharia-lab/actions-library/.github/workflows/update-homebrew-formula.yml@main
+    with:
+      formula-name: gscli
+      tag-name: ${{ github.ref_name }}
+    secrets:
+      tap-token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
