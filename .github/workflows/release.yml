@@ -147,10 +147,94 @@ jobs:
     needs: create-release
     runs-on: ubuntu-latest
     steps:
-      - uses: mislav/bump-homebrew-formula-action@v3
-        with:
-          formula-name: gscli
-          tag-name: ${{ github.ref_name }}
-          homebrew-tap: shaharia-lab/homebrew-tap
+      - name: Update Homebrew formulas
         env:
-          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_NUM="${VERSION#v}"
+          VERSION_CLASS=$(echo "$VERSION_NUM" | tr -d '.')
+
+          # Calculate SHA256 for macOS binary
+          echo "Calculating SHA256 checksum..."
+          SHA_MACOS=$(curl -sL "https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-macos" | sha256sum | cut -d' ' -f1)
+          echo "SHA256 macOS: ${SHA_MACOS}"
+
+          # Main formula content
+          MAIN_FORMULA="# typed: false
+          # frozen_string_literal: true
+
+          class Gscli < Formula
+            desc \"Google Suite CLI - Access Gmail, Drive, and Calendar from command line\"
+            homepage \"https://github.com/shaharia-lab/gscli\"
+            version \"${VERSION_NUM}\"
+            license \"MIT\"
+
+            on_macos do
+              url \"https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-macos\"
+              sha256 \"${SHA_MACOS}\"
+            end
+
+            def install
+              bin.install \"gscli-macos\" => \"gscli\"
+            end
+
+            test do
+              system \"\#{bin}/gscli\", \"--version\"
+            end
+          end"
+
+          # Versioned formula content
+          VERSIONED_FORMULA="# typed: false
+          # frozen_string_literal: true
+
+          class GscliAT${VERSION_CLASS} < Formula
+            desc \"Google Suite CLI - Access Gmail, Drive, and Calendar from command line\"
+            homepage \"https://github.com/shaharia-lab/gscli\"
+            version \"${VERSION_NUM}\"
+            license \"MIT\"
+
+            keg_only :versioned_formula
+
+            on_macos do
+              url \"https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-macos\"
+              sha256 \"${SHA_MACOS}\"
+            end
+
+            def install
+              bin.install \"gscli-macos\" => \"gscli\"
+            end
+
+            test do
+              system \"\#{bin}/gscli\", \"--version\"
+            end
+          end"
+
+          # Update main formula
+          echo "Updating main formula gscli.rb..."
+          MAIN_SHA=$(gh api "repos/shaharia-lab/homebrew-tap/contents/Formula/gscli.rb" --jq '.sha' 2>/dev/null || echo "")
+          if [ -n "$MAIN_SHA" ]; then
+            echo "$MAIN_FORMULA" | gh api --method PUT "repos/shaharia-lab/homebrew-tap/contents/Formula/gscli.rb" \
+              -f message="gscli ${VERSION_NUM}" \
+              -f content="$(echo "$MAIN_FORMULA" | base64 -w0)" \
+              -f sha="$MAIN_SHA" \
+              -f branch="main"
+          else
+            echo "$MAIN_FORMULA" | gh api --method PUT "repos/shaharia-lab/homebrew-tap/contents/Formula/gscli.rb" \
+              -f message="gscli ${VERSION_NUM}" \
+              -f content="$(echo "$MAIN_FORMULA" | base64 -w0)" \
+              -f branch="main"
+          fi
+
+          # Create versioned formula if it doesn't exist
+          if gh api "repos/shaharia-lab/homebrew-tap/contents/Formula/gscli@${VERSION_NUM}.rb" --silent 2>/dev/null; then
+            echo "Versioned formula gscli@${VERSION_NUM}.rb already exists, skipping"
+          else
+            echo "Creating versioned formula gscli@${VERSION_NUM}.rb..."
+            echo "$VERSIONED_FORMULA" | gh api --method PUT "repos/shaharia-lab/homebrew-tap/contents/Formula/gscli@${VERSION_NUM}.rb" \
+              -f message="Add gscli@${VERSION_NUM} versioned formula" \
+              -f content="$(echo "$VERSIONED_FORMULA" | base64 -w0)" \
+              -f branch="main"
+          fi
+
+          echo "Homebrew formulas updated successfully!"
