@@ -155,10 +155,12 @@ jobs:
           VERSION_NUM="${VERSION#v}"
           VERSION_CLASS=$(echo "$VERSION_NUM" | tr -d '.')
 
-          # Calculate SHA256 for macOS binary
-          echo "Calculating SHA256 checksum..."
+          # Calculate SHA256 for binaries
+          echo "Calculating SHA256 checksums..."
           SHA_MACOS=$(curl -sL "https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-macos" | sha256sum | cut -d' ' -f1)
+          SHA_LINUX=$(curl -sL "https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-linux" | sha256sum | cut -d' ' -f1)
           echo "SHA256 macOS: ${SHA_MACOS}"
+          echo "SHA256 Linux: ${SHA_LINUX}"
 
           # Main formula content
           MAIN_FORMULA="# typed: false
@@ -173,10 +175,19 @@ jobs:
             on_macos do
               url \"https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-macos\"
               sha256 \"${SHA_MACOS}\"
+
+              def install
+                bin.install \"gscli-macos\" => \"gscli\"
+              end
             end
 
-            def install
-              bin.install \"gscli-macos\" => \"gscli\"
+            on_linux do
+              url \"https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-linux\"
+              sha256 \"${SHA_LINUX}\"
+
+              def install
+                bin.install \"gscli-linux\" => \"gscli\"
+              end
             end
 
             test do
@@ -199,10 +210,19 @@ jobs:
             on_macos do
               url \"https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-macos\"
               sha256 \"${SHA_MACOS}\"
+
+              def install
+                bin.install \"gscli-macos\" => \"gscli\"
+              end
             end
 
-            def install
-              bin.install \"gscli-macos\" => \"gscli\"
+            on_linux do
+              url \"https://github.com/shaharia-lab/gscli/releases/download/${VERSION}/gscli-linux\"
+              sha256 \"${SHA_LINUX}\"
+
+              def install
+                bin.install \"gscli-linux\" => \"gscli\"
+              end
             end
 
             test do
