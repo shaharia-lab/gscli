@@ -2,6 +2,7 @@
 
 > **A fast CLI tool for AI agents and developers to access Gmail, Drive, and Calendar from terminal**
 
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/shaharia-lab/gscli/total)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/github-shaharia--lab%2Fgscli-blue)](https://github.com/shaharia-lab/gscli)
 
