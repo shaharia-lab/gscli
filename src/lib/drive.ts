@@ -55,6 +55,14 @@ const EXPORT_FORMATS: Record<string, Record<string, { mimeType: string; extensio
 const MAX_PAGE_SIZE = 1000;
 
 /**
+ * Escape a user-provided value for safe interpolation into a Drive query
+ * string literal. Backslashes must be escaped before quotes.
+ */
+function escapeDriveQueryValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+/**
  * Map a raw Drive API file resource to our DriveFile shape.
  */
 function mapDriveFile(file: any): DriveFile {
@@ -123,16 +131,7 @@ export async function listFiles(
 
     // If folder is specified, find it first
     if (options.folder) {
-      // Try to find folder by name or use as ID
-      const folderQuery = `name='${options.folder}' and mimeType='application/vnd.google-apps.folder' and trashed = false`;
-      const folderResponse = await drive.files.list({
-        q: folderQuery,
-        fields: 'files(id, name)',
-        pageSize: 1,
-      });
-
-      const folder = folderResponse.data.files?.[0];
-      const folderId = folder?.id || options.folder;
+      const folderId = await resolveFolderId(auth, options.folder);
       query = `'${folderId}' in parents and ${trashedClause}`;
     } else if (options.trashed || options.includeShared) {
       // List all files (trashed view spans the whole drive, not just root)
@@ -169,8 +168,8 @@ export async function searchFiles(
   const drive = google.drive({ version: 'v3', auth });
 
   try {
-    // Escape backslashes and single quotes so the term can't break the query.
-    const escaped = searchTerm.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    // Escape so the term can't break the query.
+    const escaped = escapeDriveQueryValue(searchTerm);
 
     // By default match both the file name and its full-text content (what the
     // Drive web UI does). Use nameOnly for a narrower, name-only match.
@@ -301,7 +300,7 @@ export async function resolveFolderId(
   const drive = google.drive({ version: 'v3', auth });
 
   // Try to find a folder with this name first
-  const folderQuery = `name='${nameOrId.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed = false`;
+  const folderQuery = `name='${escapeDriveQueryValue(nameOrId)}' and mimeType='application/vnd.google-apps.folder' and trashed = false`;
   const folderResponse = await drive.files.list({
     q: folderQuery,
     fields: 'files(id, name)',
