@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-20
+
+### Added
+- **Drive file organization commands** - Manage and organize Drive files from the CLI
+  - `gscli drive move <file-id> --to <name-or-id>` - Move a file to another folder (by folder name, ID, or `root`)
+  - `gscli drive trash <file-id>` - Move a file to the trash (recoverable)
+  - `gscli drive restore <file-id>` - Restore a file from the trash
+  - `gscli drive delete <file-id> --yes` - Permanently delete a file (requires explicit `--yes` confirmation)
+  - `gscli drive list --trashed` - List files currently in the trash
+- **Pagination for `drive list` and `drive search`** - Results now follow `nextPageToken` across pages
+  - `--limit` is honored across multiple API pages
+  - New `--all` flag fetches every matching result
+- **Comprehensive `drive search`** - Now matches file content (full text) in addition to file names by default
+  - `--name-only` restores name-only matching
+  - `--include-shared` extends search to shared items and shared drives
+  - Search terms are now escaped so quotes and backslashes no longer break queries
+
+### Changed
+- **BREAKING: Google Drive OAuth scope changed** from `drive.readonly` to `drive` to support write
+  operations (move/trash/delete). **Existing users must re-authenticate** with `gscli auth login`
+  to grant the new scope.
+
 ## [0.1.1] - 2025-11-06
 
 ### Fixed
