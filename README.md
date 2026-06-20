@@ -21,7 +21,7 @@
 ## Features
 
 - 📧 **Gmail** - List and search emails from your inbox
-- 📁 **Google Drive** - List, search, and download files (with PDF export for Google Docs)
+- 📁 **Google Drive** - List, search, download, and organize files — move, trash, restore, and delete (with PDF export for Google Docs)
 - 📅 **Calendar** - View and search calendar events with flexible date ranges
 - ⚡ **Fast** - Built with Bun for blazing-fast performance
 - 🔐 **Secure** - OAuth2 authentication with automatic token refresh
@@ -219,8 +219,20 @@ gscli drive list --include-shared
 # List files in specific folder
 gscli drive list --folder "Project Docs"
 
-# Search for files by name
+# Fetch ALL files (pages through every result, ignores --limit)
+gscli drive list --all
+
+# Search for files (matches both file name AND file content by default)
 gscli drive search "Budget 2025"
+
+# Search file names only
+gscli drive search "Budget 2025" --name-only
+
+# Search across files shared with you and shared drives
+gscli drive search "Budget 2025" --include-shared
+
+# Return every match (pages through all results)
+gscli drive search "Budget 2025" --all
 
 # Download a file
 gscli drive download <file-id>
@@ -247,6 +259,22 @@ gscli drive comments <file-id>
 
 # List all comments including resolved
 gscli drive comments <file-id> --include-resolved
+
+# Move a file to another folder (by folder name, ID, or "root")
+gscli drive move <file-id> --to "Project Docs"
+gscli drive move <file-id> --to root
+
+# List files currently in the trash
+gscli drive list --trashed
+
+# Move a file to the trash (recoverable)
+gscli drive trash <file-id>
+
+# Restore a file from the trash
+gscli drive restore <file-id>
+
+# Permanently delete a file (cannot be undone; requires --yes to confirm)
+gscli drive delete <file-id> --yes
 ```
 
 ### Google Calendar Commands
@@ -400,11 +428,13 @@ bun run build:all
 
 ## API Scopes
 
-The tool requests these read-only scopes:
+The tool requests these scopes:
 
-- `https://www.googleapis.com/auth/gmail.readonly`
-- `https://www.googleapis.com/auth/drive.readonly`
-- `https://www.googleapis.com/auth/calendar.readonly`
+- `https://www.googleapis.com/auth/gmail.readonly` (read-only)
+- `https://www.googleapis.com/auth/drive` (read/write — required for moving, trashing, and deleting files)
+- `https://www.googleapis.com/auth/calendar.readonly` (read-only)
+
+> **Note:** The Drive scope changed from `drive.readonly` to `drive` to support file organization (move/trash/delete). After upgrading, re-authenticate with `gscli auth login` to grant the new scope.
 
 ## Contributing
 
