@@ -51,6 +51,65 @@ const EXPORT_FORMATS: Record<string, Record<string, { mimeType: string; extensio
   },
 };
 
+// The Drive API caps a single page at 1000 results.
+const MAX_PAGE_SIZE = 1000;
+
+/**
+ * Escape a user-provided value for safe interpolation into a Drive query
+ * string literal. Backslashes must be escaped before quotes.
+ */
+function escapeDriveQueryValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+/**
+ * Map a raw Drive API file resource to our DriveFile shape.
+ */
+function mapDriveFile(file: any): DriveFile {
+  return {
+    id: file.id!,
+    name: file.name!,
+    mimeType: file.mimeType!,
+    size: file.size,
+    modifiedTime: file.modifiedTime!,
+    webViewLink: file.webViewLink,
+    isFolder: file.mimeType === 'application/vnd.google-apps.folder',
+  };
+}
+
+/**
+ * Run a files.list query, following nextPageToken across pages.
+ * Stops once `limit` files are collected, or fetches every page when `all` is set.
+ */
+async function listAllPages(
+  drive: ReturnType<typeof google.drive>,
+  params: Record<string, any>,
+  options: { limit?: number; all?: boolean }
+): Promise<DriveFile[]> {
+  const fetchAll = options.all === true;
+  const target = fetchAll ? Infinity : (options.limit ?? 100);
+  const collected: DriveFile[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const remaining = target - collected.length;
+    if (!fetchAll && remaining <= 0) break;
+
+    const response = await drive.files.list({
+      ...params,
+      pageSize: fetchAll ? MAX_PAGE_SIZE : Math.min(MAX_PAGE_SIZE, remaining),
+      pageToken,
+    });
+
+    for (const file of response.data.files || []) {
+      collected.push(mapDriveFile(file));
+    }
+    pageToken = response.data.nextPageToken || undefined;
+  } while (pageToken && (fetchAll || collected.length < target));
+
+  return fetchAll ? collected : collected.slice(0, target);
+}
+
 /**
  * List files in Google Drive
  */
@@ -60,54 +119,38 @@ export async function listFiles(
     folder?: string;
     limit?: number;
     includeShared?: boolean;
+    trashed?: boolean;
+    all?: boolean;
   } = {}
 ): Promise<DriveFile[]> {
   const drive = google.drive({ version: 'v3', auth });
-  const limit = options.limit || 100;
+  const trashedClause = `trashed = ${options.trashed ? 'true' : 'false'}`;
 
   try {
-    let query = "trashed = false";
+    let query = trashedClause;
 
     // If folder is specified, find it first
     if (options.folder) {
-      // Try to find folder by name or use as ID
-      const folderQuery = `name='${options.folder}' and mimeType='application/vnd.google-apps.folder' and trashed = false`;
-      const folderResponse = await drive.files.list({
-        q: folderQuery,
-        fields: 'files(id, name)',
-        pageSize: 1,
-      });
-
-      const folder = folderResponse.data.files?.[0];
-      const folderId = folder?.id || options.folder;
-      query = `'${folderId}' in parents and trashed = false`;
-    } else if (options.includeShared) {
-      // List all files including shared with me
-      query = "trashed = false";
+      const folderId = await resolveFolderId(auth, options.folder);
+      query = `'${folderId}' in parents and ${trashedClause}`;
+    } else if (options.trashed || options.includeShared) {
+      // List all files (trashed view spans the whole drive, not just root)
+      query = trashedClause;
     } else {
       // List root files only
-      query = "'root' in parents and trashed = false";
+      query = `'root' in parents and ${trashedClause}`;
     }
 
-    const response = await drive.files.list({
-      q: query,
-      pageSize: limit,
-      fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink)',
-      orderBy: 'modifiedTime desc',
-      ...(options.includeShared && { corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true }),
-    });
-
-    const files = response.data.files || [];
-
-    return files.map((file) => ({
-      id: file.id!,
-      name: file.name!,
-      mimeType: file.mimeType!,
-      size: file.size,
-      modifiedTime: file.modifiedTime!,
-      webViewLink: file.webViewLink,
-      isFolder: file.mimeType === 'application/vnd.google-apps.folder',
-    }));
+    return await listAllPages(
+      drive,
+      {
+        q: query,
+        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)',
+        orderBy: 'modifiedTime desc',
+        ...(options.includeShared && { corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true }),
+      },
+      { limit: options.limit ?? 100, all: options.all }
+    );
   } catch (error: any) {
     throw new Error(`Failed to list files: ${error.message}`);
   }
@@ -119,31 +162,33 @@ export async function listFiles(
 export async function searchFiles(
   auth: OAuth2Client,
   searchTerm: string,
-  limit: number = 50
+  limit: number = 50,
+  options: { all?: boolean; nameOnly?: boolean; includeShared?: boolean } = {}
 ): Promise<DriveFile[]> {
   const drive = google.drive({ version: 'v3', auth });
 
   try {
-    const query = `name contains '${searchTerm}' and trashed = false`;
-    
-    const response = await drive.files.list({
-      q: query,
-      pageSize: limit,
-      fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink)',
-      orderBy: 'modifiedTime desc',
-    });
+    // Escape so the term can't break the query.
+    const escaped = escapeDriveQueryValue(searchTerm);
 
-    const files = response.data.files || [];
-    
-    return files.map((file) => ({
-      id: file.id!,
-      name: file.name!,
-      mimeType: file.mimeType!,
-      size: file.size,
-      modifiedTime: file.modifiedTime!,
-      webViewLink: file.webViewLink,
-      isFolder: file.mimeType === 'application/vnd.google-apps.folder',
-    }));
+    // By default match both the file name and its full-text content (what the
+    // Drive web UI does). Use nameOnly for a narrower, name-only match.
+    const matchClause = options.nameOnly
+      ? `name contains '${escaped}'`
+      : `(name contains '${escaped}' or fullText contains '${escaped}')`;
+
+    const query = `${matchClause} and trashed = false`;
+
+    return await listAllPages(
+      drive,
+      {
+        q: query,
+        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink)',
+        orderBy: 'modifiedTime desc',
+        ...(options.includeShared && { corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true }),
+      },
+      { limit, all: options.all }
+    );
   } catch (error: any) {
     throw new Error(`Failed to search files: ${error.message}`);
   }
@@ -236,6 +281,163 @@ export async function downloadFile(
     return outputPath;
   } catch (error: any) {
     throw new Error(`Failed to download file: ${error.message}`);
+  }
+}
+
+/**
+ * Resolve a folder name or ID to a folder ID.
+ * Accepts the special value "root" for the Drive root, an exact folder ID,
+ * or a folder name (the first matching folder is used).
+ */
+export async function resolveFolderId(
+  auth: OAuth2Client,
+  nameOrId: string
+): Promise<string> {
+  if (nameOrId === 'root') {
+    return 'root';
+  }
+
+  const drive = google.drive({ version: 'v3', auth });
+
+  // Try to find a folder with this name first
+  const folderQuery = `name='${escapeDriveQueryValue(nameOrId)}' and mimeType='application/vnd.google-apps.folder' and trashed = false`;
+  const folderResponse = await drive.files.list({
+    q: folderQuery,
+    fields: 'files(id, name)',
+    pageSize: 1,
+  });
+
+  const folder = folderResponse.data.files?.[0];
+  if (folder?.id) {
+    return folder.id;
+  }
+
+  // Otherwise assume the value is already a folder ID
+  return nameOrId;
+}
+
+/**
+ * Move a file to a different folder.
+ * The destination can be a folder name, a folder ID, or "root".
+ */
+export async function moveFile(
+  auth: OAuth2Client,
+  fileId: string,
+  destination: string
+): Promise<DriveFile> {
+  const drive = google.drive({ version: 'v3', auth });
+
+  try {
+    const targetFolderId = await resolveFolderId(auth, destination);
+
+    // Get the current parents so we can remove them
+    const current = await drive.files.get({
+      fileId,
+      fields: 'id, name, parents',
+    });
+
+    const previousParents = (current.data.parents || []).join(',');
+
+    const response = await drive.files.update({
+      fileId,
+      addParents: targetFolderId,
+      removeParents: previousParents || undefined,
+      fields: 'id, name, mimeType, size, modifiedTime, webViewLink',
+    });
+
+    const file = response.data;
+
+    return {
+      id: file.id!,
+      name: file.name!,
+      mimeType: file.mimeType!,
+      size: file.size,
+      modifiedTime: file.modifiedTime!,
+      webViewLink: file.webViewLink,
+      isFolder: file.mimeType === 'application/vnd.google-apps.folder',
+    };
+  } catch (error: any) {
+    throw new Error(`Failed to move file: ${error.message}`);
+  }
+}
+
+/**
+ * Move a file to the trash (recoverable).
+ */
+export async function trashFile(
+  auth: OAuth2Client,
+  fileId: string
+): Promise<DriveFile> {
+  const drive = google.drive({ version: 'v3', auth });
+
+  try {
+    const response = await drive.files.update({
+      fileId,
+      requestBody: { trashed: true },
+      fields: 'id, name, mimeType, size, modifiedTime, webViewLink',
+    });
+
+    const file = response.data;
+
+    return {
+      id: file.id!,
+      name: file.name!,
+      mimeType: file.mimeType!,
+      size: file.size,
+      modifiedTime: file.modifiedTime!,
+      webViewLink: file.webViewLink,
+      isFolder: file.mimeType === 'application/vnd.google-apps.folder',
+    };
+  } catch (error: any) {
+    throw new Error(`Failed to trash file: ${error.message}`);
+  }
+}
+
+/**
+ * Restore a file from the trash.
+ */
+export async function restoreFile(
+  auth: OAuth2Client,
+  fileId: string
+): Promise<DriveFile> {
+  const drive = google.drive({ version: 'v3', auth });
+
+  try {
+    const response = await drive.files.update({
+      fileId,
+      requestBody: { trashed: false },
+      fields: 'id, name, mimeType, size, modifiedTime, webViewLink',
+    });
+
+    const file = response.data;
+
+    return {
+      id: file.id!,
+      name: file.name!,
+      mimeType: file.mimeType!,
+      size: file.size,
+      modifiedTime: file.modifiedTime!,
+      webViewLink: file.webViewLink,
+      isFolder: file.mimeType === 'application/vnd.google-apps.folder',
+    };
+  } catch (error: any) {
+    throw new Error(`Failed to restore file: ${error.message}`);
+  }
+}
+
+/**
+ * Permanently delete a file. This cannot be undone.
+ */
+export async function deleteFile(
+  auth: OAuth2Client,
+  fileId: string
+): Promise<void> {
+  const drive = google.drive({ version: 'v3', auth });
+
+  try {
+    await drive.files.delete({ fileId });
+  } catch (error: any) {
+    throw new Error(`Failed to delete file: ${error.message}`);
   }
 }
 
